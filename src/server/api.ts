@@ -24,7 +24,7 @@ import {
   users,
 } from '../db/schema.ts';
 import { eq, desc, sql, and, gte, inArray } from 'drizzle-orm';
-import { requireAuth, requireRole, AuthRequest } from '../middleware/auth.ts';
+import { requireAuth, requireRole, type AuthRequest } from '../middleware/auth.ts';
 import { resetAndSeedDemoDatabase } from '../db/seed.ts';
 
 export const apiRouter = express.Router();
