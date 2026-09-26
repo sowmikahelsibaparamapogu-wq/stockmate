@@ -1,0 +1,6 @@
+{
+  "name": "StockSense - Inventory Management System",
+  "description": "Production-grade, role-based Inventory Management System for Inventory Managers and Warehouse Staff.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
