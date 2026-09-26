@@ -275,7 +275,7 @@ export const BarcodeScannerTerminal: React.FC<BarcodeScannerTerminalProps> = ({
 
         // Step B: Pure JS Multi-Format ZXing Decoder
         try {
-          const result = reader.decodeFromVideoElement(videoRef.current);
+          const result = await reader.decodeFromVideoElement(videoRef.current);
           if (result && result.getText()) {
             const detected = result.getText().trim();
             if (detected) {

@@ -40,8 +40,8 @@ async function startServer() {
     });
   }
 
-  app.listen(port, () => {
-    console.log(`StockSense server running on http://localhost:${port}`);
+  app.listen(Number(port), '0.0.0.0', () => {
+    console.log(`StockSense server running on http://0.0.0.0:${port}`);
   });
 }
 

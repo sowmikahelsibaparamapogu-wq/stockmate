@@ -165,12 +165,13 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
     const randomSkuSuffix = Math.floor(100 + Math.random() * 900);
     const randomBarcode = `890${Math.floor(100000000 + Math.random() * 900000000)}`;
 
-    setFormData({
+    setFormData((prev) => ({
+      ...prev,
       ...preset.data,
       sku: `${preset.data.sku}-${randomSkuSuffix}`,
       barcode: randomBarcode,
       categoryId: matchedCategory ? String(matchedCategory.id) : '',
-    });
+    }));
     showToast(`Loaded preset "${preset.label}"`);
   };
 
@@ -237,6 +238,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
       reorderThreshold: p.reorderThreshold,
       trackBatchExpiry: p.trackBatchExpiry,
       description: p.description || '',
+      initialStock: 0,
+      warehouseId: '',
+      locationId: '',
     });
     setIsModalOpen(true);
   };
