@@ -144,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Dedicated Portal Identity Indicator */}
-        <div className="p-3 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/80 space-y-1">
+        <div className="p-3 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/80">
           <div className="flex items-center justify-between">
             <span
               className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded ${
@@ -159,11 +159,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {isManager ? 'HQ OPS' : 'STAFF'}
             </span>
           </div>
-          <p className="text-[11px] text-stone-600 dark:text-stone-300 font-medium">
-            {isManager
-              ? 'Enterprise Ops & Executive Control'
-              : 'Warehouse Receiving & Fulfillment'}
-          </p>
         </div>
       </div>
 

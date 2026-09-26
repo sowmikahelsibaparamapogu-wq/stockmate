@@ -434,6 +434,14 @@ function createInMemoryDb(): any {
               res.assignedWarehouse =
                 getTableRows('warehouses').find((w) => w.id === row.assignedWarehouseId) || null;
             }
+            if (withConfig.author) {
+              res.author =
+                getTableRows('users').find((u) => u.id === row.authorId) || null;
+            }
+            if (withConfig.acknowledgedBy) {
+              res.acknowledgedBy =
+                getTableRows('users').find((u) => u.id === row.acknowledgedById) || null;
+            }
             return res;
           };
 

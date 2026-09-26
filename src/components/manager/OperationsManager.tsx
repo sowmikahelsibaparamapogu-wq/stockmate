@@ -16,10 +16,12 @@ import {
   X,
   AlertCircle,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { StatusBadge } from '../common/StatusBadge.tsx';
+import { DocumentCommentThread } from '../common/DocumentCommentThread.tsx';
 
 export const OperationsManager: React.FC = () => {
   const { token } = useAuth();
@@ -37,6 +39,13 @@ export const OperationsManager: React.FC = () => {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Two-way Document Notes & Discussion Modal
+  const [activeDocComment, setActiveDocComment] = useState<{
+    type: 'receipt' | 'delivery' | 'transfer' | 'adjustment';
+    id: string;
+    warehouseId?: number;
+  } | null>(null);
 
   // New Delivery Modal
   const [isDoModalOpen, setIsDoModalOpen] = useState(false);
@@ -364,6 +373,7 @@ export const OperationsManager: React.FC = () => {
                   <th className="py-3 px-4">Products & Quantities</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Validation Date</th>
+                  <th className="py-3 px-4 text-right">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -390,6 +400,22 @@ export const OperationsManager: React.FC = () => {
                     <td className="py-3.5 px-4 font-mono text-[11px] text-stone-400">
                       {rec.validatedAt ? new Date(rec.validatedAt).toLocaleString() : 'Pending Staff Receiving'}
                     </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveDocComment({
+                            type: 'receipt',
+                            id: rec.receiptNumber,
+                            warehouseId: rec.warehouseId,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 dark:bg-stone-800 dark:hover:bg-red-950/40 text-stone-700 dark:text-stone-300 hover:text-red-600 dark:hover:text-red-400 font-semibold text-xs border border-stone-200 dark:border-stone-700 transition"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-red-600" />
+                        <span>Notes</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -411,6 +437,7 @@ export const OperationsManager: React.FC = () => {
                   <th className="py-3 px-4">Items Ordered / Picked</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Dispatch Timestamp</th>
+                  <th className="py-3 px-4 text-right">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -445,6 +472,22 @@ export const OperationsManager: React.FC = () => {
                     <td className="py-3.5 px-4 font-mono text-[11px] text-stone-400">
                       {d.validatedAt ? new Date(d.validatedAt).toLocaleString() : 'Ready for Pick & Pack'}
                     </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveDocComment({
+                            type: 'delivery',
+                            id: d.doNumber,
+                            warehouseId: d.warehouseId,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 dark:bg-stone-800 dark:hover:bg-red-950/40 text-stone-700 dark:text-stone-300 hover:text-red-600 dark:hover:text-red-400 font-semibold text-xs border border-stone-200 dark:border-stone-700 transition"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-red-600" />
+                        <span>Notes</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -466,6 +509,7 @@ export const OperationsManager: React.FC = () => {
                   <th className="py-3 px-4">Product & Qty</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Completed Date</th>
+                  <th className="py-3 px-4 text-right">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -488,6 +532,22 @@ export const OperationsManager: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 font-mono text-[11px] text-stone-400">
                       {t.validatedAt ? new Date(t.validatedAt).toLocaleString() : 'In Transit'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveDocComment({
+                            type: 'transfer',
+                            id: t.transferNumber,
+                            warehouseId: t.warehouseId,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 dark:bg-stone-800 dark:hover:bg-red-950/40 text-stone-700 dark:text-stone-300 hover:text-red-600 dark:hover:text-red-400 font-semibold text-xs border border-stone-200 dark:border-stone-700 transition"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-red-600" />
+                        <span>Notes</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -556,21 +616,37 @@ export const OperationsManager: React.FC = () => {
                       <StatusBadge status={a.status} />
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      {a.status === 'Waiting' ? (
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={() => {
-                            setReviewModalData(a);
-                            setManagerComment('');
-                          }}
-                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                          type="button"
+                          onClick={() =>
+                            setActiveDocComment({
+                              type: 'adjustment',
+                              id: a.adjustmentNumber,
+                              warehouseId: a.warehouseId,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 dark:bg-stone-800 dark:hover:bg-red-950/40 text-stone-700 dark:text-stone-300 hover:text-red-600 dark:hover:text-red-400 font-semibold text-xs border border-stone-200 dark:border-stone-700 transition"
                         >
-                          Review & Decide
+                          <MessageSquare className="w-3.5 h-3.5 text-red-600" />
+                          <span>Notes</span>
                         </button>
-                      ) : (
-                        <span className="text-[11px] text-stone-400">
-                          {a.managerComment || 'Reviewed'}
-                        </span>
-                      )}
+                        {a.status === 'Waiting' ? (
+                          <button
+                            onClick={() => {
+                              setReviewModalData(a);
+                              setManagerComment('');
+                            }}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                          >
+                            Review & Decide
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-stone-400">
+                            {a.managerComment || 'Reviewed'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -741,6 +817,15 @@ export const OperationsManager: React.FC = () => {
                   value={managerComment}
                   onChange={(e) => setManagerComment(e.target.value)}
                   className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg p-2.5 text-stone-900 dark:text-stone-100"
+                />
+              </div>
+
+              {/* Live Staff / Manager Comment Thread */}
+              <div className="pt-2">
+                <DocumentCommentThread
+                  documentType="adjustment"
+                  documentId={reviewModalData.adjustmentNumber}
+                  warehouseId={reviewModalData.warehouseId}
                 />
               </div>
             </div>
@@ -1012,6 +1097,46 @@ export const OperationsManager: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Two-Way Document Comment Thread Modal for Manager */}
+      {activeDocComment && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-red-600" />
+                <div>
+                  <h3 className="font-bold text-sm text-stone-900 dark:text-stone-100 uppercase">
+                    {activeDocComment.type} Discussion: {activeDocComment.id}
+                  </h3>
+                  <p className="text-[11px] text-stone-500">Live notes between inventory management and warehouse floor staff</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveDocComment(null)}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <DocumentCommentThread
+              documentType={activeDocComment.type}
+              documentId={activeDocComment.id}
+              warehouseId={activeDocComment.warehouseId}
+            />
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveDocComment(null)}
+                className="px-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg text-xs font-semibold text-stone-700 dark:text-stone-300"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

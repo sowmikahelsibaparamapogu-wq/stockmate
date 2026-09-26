@@ -20,6 +20,7 @@ import {
   stockLedger,
   batches,
   notifications,
+  comments,
   auditLog,
   users,
 } from '../db/schema.ts';
@@ -28,6 +29,50 @@ import { requireAuth, requireRole, type AuthRequest } from '../middleware/auth.t
 import { resetAndSeedDemoDatabase } from '../db/seed.ts';
 
 export const apiRouter = express.Router();
+
+// Helper to send targeted notifications to warehouse-scoped staff
+export async function createTargetedStaffNotification({
+  title,
+  message,
+  type = 'task_assigned',
+  warehouseId,
+  actionUrl = '',
+}: {
+  title: string;
+  message: string;
+  type?: string;
+  warehouseId?: number;
+  actionUrl?: string;
+}) {
+  let targetUserId: number | null = null;
+  let targetWarehouseId: number | null = warehouseId ? Number(warehouseId) : null;
+
+  if (targetWarehouseId) {
+    const assignedStaff = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.role, 'staff'), eq(users.assignedWarehouseId, targetWarehouseId)));
+    if (assignedStaff.length > 0) {
+      if (assignedStaff.length === 1) {
+        targetUserId = assignedStaff[0].id;
+      }
+    } else {
+      // Fallback to targetRole: 'staff' broadcast only if no staff are assigned to that warehouse
+      targetWarehouseId = null;
+      targetUserId = null;
+    }
+  }
+
+  await db.insert(notifications).values({
+    title,
+    message,
+    type,
+    targetRole: 'staff',
+    targetUserId,
+    targetWarehouseId,
+    actionUrl,
+  });
+}
 
 // Helper to record audit log
 export async function createAudit(
@@ -754,12 +799,12 @@ apiRouter.post('/purchase-orders', requireAuth, requireRole(['manager']), async 
       }
     }
 
-    // Notify Warehouse Staff
-    await db.insert(notifications).values({
+    // Notify Warehouse Staff scoped to target warehouse
+    await createTargetedStaffNotification({
       title: `Inbound Shipment Ready: ${receiptNumber}`,
       message: `Purchase Order ${poNumber} has been issued. Staff can inspect and receive stock under Receipt ${receiptNumber}.`,
       type: 'task_assigned',
-      targetRole: 'staff',
+      warehouseId: Number(warehouseId),
       actionUrl: '/staff/receipts',
     });
 
@@ -899,11 +944,11 @@ apiRouter.post('/purchase-orders/auto-reorder', requireAuth, requireRole(['manag
       });
     }
 
-    await db.insert(notifications).values({
+    await createTargetedStaffNotification({
       title: `⚡ Auto-Order Executed: ${poNumber}`,
       message: `Automatic reorder for ${product.name} (${product.sku}) issued: ${orderQuantity} ${product.unitOfMeasure}. Inbound Receipt ${receiptNumber} created on dock.`,
       type: 'task_assigned',
-      targetRole: 'all',
+      warehouseId: targetWhId,
       actionUrl: '/staff/receipts',
     });
 
@@ -1156,11 +1201,11 @@ apiRouter.post('/delivery-orders', requireAuth, requireRole(['manager']), async 
       });
     }
 
-    await db.insert(notifications).values({
+    await createTargetedStaffNotification({
       title: `Picking Assignment: ${doNumber}`,
       message: `Delivery Order ${doNumber} for ${customerName || 'customer'} is ready to pick and pack.`,
       type: 'task_assigned',
-      targetRole: 'staff',
+      warehouseId: Number(warehouseId),
       actionUrl: '/staff/delivery-orders',
     });
 
@@ -1343,6 +1388,14 @@ apiRouter.post('/transfers', requireAuth, async (req: AuthRequest, res) => {
       transferId: trf.id,
       productId: Number(productId),
       quantity: Number(quantity),
+    });
+
+    await createTargetedStaffNotification({
+      title: `Internal Transfer Request: ${transferNumber}`,
+      message: `Transfer ${transferNumber} created. Staff requested to move stock between zones.`,
+      type: 'task_assigned',
+      warehouseId: Number(warehouseId),
+      actionUrl: '/staff/transfers',
     });
 
     await createAudit(req.dbUser?.id, 'CREATE', 'internal_transfer', transferNumber, trf);
@@ -1848,13 +1901,49 @@ apiRouter.patch('/staff/:id', requireAuth, requireRole(['manager']), async (req:
 apiRouter.get('/notifications', requireAuth, async (req: AuthRequest, res) => {
   try {
     const userRole = req.dbUser?.role || 'staff';
-    const list = await db
+    const userId = req.dbUser?.id;
+    const userWarehouseId = req.dbUser?.assignedWarehouseId;
+
+    const allNotifs = await db
       .select()
       .from(notifications)
-      .where(sql`target_role IS NULL OR target_role = ${userRole} OR target_role = 'all'`)
       .orderBy(desc(notifications.createdAt))
-      .limit(50);
-    res.json(list);
+      .limit(100);
+
+    const userList = await db.select().from(users);
+
+    const filtered = allNotifs.filter((n: any) => {
+      // Role match
+      const matchesRole = !n.targetRole || n.targetRole === 'all' || n.targetRole === userRole;
+      if (!matchesRole) return false;
+
+      if (userRole === 'manager') {
+        if (n.targetUserId && n.targetUserId !== userId) return false;
+        return true;
+      }
+
+      // Staff role:
+      // If directly addressed to this user, show it
+      if (n.targetUserId) {
+        return n.targetUserId === userId;
+      }
+      // If scoped to a specific warehouse
+      if (n.targetWarehouseId) {
+        return userWarehouseId ? n.targetWarehouseId === userWarehouseId : false;
+      }
+      // General broadcast without targetWarehouseId/targetUserId
+      return true;
+    });
+
+    const populated = filtered.slice(0, 50).map((n: any) => {
+      const ackUser = n.acknowledgedById ? userList.find((u) => u.id === n.acknowledgedById) : null;
+      return {
+        ...n,
+        acknowledgedBy: ackUser ? { id: ackUser.id, name: ackUser.name, role: ackUser.role } : null,
+      };
+    });
+
+    res.json(populated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1865,6 +1954,123 @@ apiRouter.patch('/notifications/:id/read', requireAuth, async (req: AuthRequest,
     const id = Number(req.params.id);
     await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Acknowledge notification (Two-way recipient status confirmation)
+apiRouter.patch('/notifications/:id/acknowledge', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const userId = req.dbUser?.id || null;
+
+    await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        acknowledgedAt: new Date(),
+        acknowledgedById: userId,
+      })
+      .where(eq(notifications.id, id));
+
+    const [updated] = await db.select().from(notifications).where(eq(notifications.id, id));
+    const userList = await db.select().from(users);
+    const ackUser = updated?.acknowledgedById ? userList.find((u) => u.id === updated.acknowledgedById) : null;
+
+    res.json({
+      ...updated,
+      acknowledgedBy: ackUser ? { id: ackUser.id, name: ackUser.name, role: ackUser.role } : null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------------------------------------------------------------
+// COMMENTS & TWO-WAY NOTES (Document-scoped collaboration)
+// ----------------------------------------------------------------------
+apiRouter.get('/comments', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { documentType, documentId } = req.query;
+    if (!documentType || !documentId) {
+      return res.status(400).json({ error: 'documentType and documentId are required.' });
+    }
+
+    const commentList = await db
+      .select()
+      .from(comments)
+      .where(and(eq(comments.documentType, String(documentType)), eq(comments.documentId, String(documentId))));
+
+    const userList = await db.select().from(users);
+
+    const populated = commentList
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .map((c) => {
+        const author = userList.find((u) => u.id === c.authorId);
+        return {
+          ...c,
+          author: author ? { id: author.id, name: author.name, role: author.role, email: author.email } : null,
+        };
+      });
+
+    res.json(populated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/comments', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { documentType, documentId, message, warehouseId } = req.body;
+    if (!documentType || !documentId || !message || !String(message).trim()) {
+      return res.status(400).json({ error: 'documentType, documentId, and message are required.' });
+    }
+
+    const currentAuthor = req.dbUser!;
+    const [created] = await db
+      .insert(comments)
+      .values({
+        documentType: String(documentType),
+        documentId: String(documentId),
+        authorId: currentAuthor.id,
+        message: String(message).trim(),
+      })
+      .returning();
+
+    // Two-way targeted notification:
+    // If author is Manager -> notify assigned staff (or staff for warehouse, or staff role)
+    // If author is Staff -> notify Managers
+    const docUpper = String(documentType).toUpperCase();
+    const snippet = message.length > 80 ? `${message.slice(0, 80)}...` : message;
+
+    if (currentAuthor.role === 'manager') {
+      await createTargetedStaffNotification({
+        title: `Manager Note on ${docUpper} ${documentId}`,
+        message: `${currentAuthor.name}: "${snippet}"`,
+        type: 'task_assigned',
+        warehouseId: warehouseId ? Number(warehouseId) : undefined,
+        actionUrl: `/staff/${documentType}s`,
+      });
+    } else {
+      await db.insert(notifications).values({
+        title: `Staff Comment on ${docUpper} ${documentId}`,
+        message: `${currentAuthor.name} (Floor Staff): "${snippet}"`,
+        type: 'info',
+        targetRole: 'manager',
+        actionUrl: '/operations',
+      });
+    }
+
+    res.status(201).json({
+      ...created,
+      author: {
+        id: currentAuthor.id,
+        name: currentAuthor.name,
+        role: currentAuthor.role,
+        email: currentAuthor.email,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

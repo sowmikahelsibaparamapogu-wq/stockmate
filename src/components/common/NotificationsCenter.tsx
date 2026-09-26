@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Bell,
   CheckCircle2,
+  CheckCheck,
   AlertTriangle,
   Clock,
   ExternalLink,
@@ -54,6 +55,24 @@ export const NotificationsCenter: React.FC<NotificationsCenterProps> = ({
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAcknowledge = async (id: number) => {
+    try {
+      const res = await fetch(`/api/v1/notifications/${id}/acknowledge`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, ...updated, isRead: true } : n))
+        );
+        showToast('Notification acknowledged and recorded for sender.', 'success');
+      }
     } catch (e) {
       console.error(e);
     }
@@ -133,17 +152,40 @@ export const NotificationsCenter: React.FC<NotificationsCenterProps> = ({
                     )}
                   </div>
 
-                  <div>
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">{n.title}</h4>
                       {!n.isRead && (
                         <span className="w-2 h-2 rounded-full bg-red-600 inline-block"></span>
                       )}
                     </div>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">{n.message}</p>
-                    <span className="text-[10px] text-stone-400 font-mono mt-1 block">
-                      {new Date(n.createdAt).toLocaleString()}
-                    </span>
+                    <p className="text-xs text-stone-600 dark:text-stone-400">{n.message}</p>
+                    
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <span className="text-[10px] text-stone-400 font-mono">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </span>
+
+                      {/* Two-Way Acknowledgment Status Indicator */}
+                      {n.acknowledgedAt ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                          <CheckCheck className="w-3 h-3" />
+                          <span>
+                            Seen / Acknowledged by {n.acknowledgedBy?.name || 'Staff'}{' '}
+                            ({new Date(n.acknowledgedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                          </span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAcknowledge(n.id)}
+                          className="inline-flex items-center gap-1 text-[10px] text-stone-600 dark:text-stone-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 px-2 py-0.5 rounded border border-stone-200 dark:border-stone-700 font-medium transition"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-stone-400" />
+                          <span>Mark Seen / Acknowledge</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 

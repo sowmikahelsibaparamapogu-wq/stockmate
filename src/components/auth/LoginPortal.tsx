@@ -184,29 +184,6 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({ onLoginSuccess }) => {
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   Inventory Manager Portal
                 </h2>
-                <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
-                  High-level executive KPIs, supplier replenishments, automatic purchase orders, physical count variance approvals, and complete PostgreSQL valuation ledger.
-                </p>
-              </div>
-
-              {/* Core Features Pill List */}
-              <div className="space-y-2 pt-2 border-t border-stone-800/80 text-xs text-stone-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-red-500 shrink-0" />
-                  <span>Real-time Financial Inventory Valuation & Margin Telemetry</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-red-500 shrink-0" />
-                  <span>1-Click Replenishment for Out-of-Stock Items</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-red-500 shrink-0" />
-                  <span>Cycle Count Discrepancy Approvals & Audit Trails</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-red-500 shrink-0" />
-                  <span>Multi-Warehouse & Cross-Zone Location Management</span>
-                </div>
               </div>
             </div>
 
@@ -254,29 +231,6 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({ onLoginSuccess }) => {
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   Warehouse Staff Portal
                 </h2>
-                <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
-                  Optimized for handheld and tablet floor operations: dock receiving inspections, delivery order picking and packaging, internal relocations, and optical barcode scanning.
-                </p>
-              </div>
-
-              {/* Core Features Pill List */}
-              <div className="space-y-2 pt-2 border-t border-stone-800/80 text-xs text-stone-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span>Inbound Dock Receiving, Lot Tracking & Putaway</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span>Outbound Order Pick & Pack with Shortage Flagging</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span>Physical Inventory Counting & Discrepancy Reporting</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span>Live Camera Barcode Scanner & Instant Tag Resolver</span>
-                </div>
               </div>
             </div>
 

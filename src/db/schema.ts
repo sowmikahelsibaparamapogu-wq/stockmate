@@ -268,12 +268,26 @@ export const notifications = pgTable('notifications', {
   message: text('message').notNull(),
   type: text('type').notNull().default('info'), // 'low_stock', 'out_of_stock', 'approval_pending', 'expiry_alert', 'po_status', 'task_assigned'
   targetRole: text('target_role'), // 'manager', 'staff', 'all'
+  targetUserId: integer('target_user_id').references(() => users.id),
+  targetWarehouseId: integer('target_warehouse_id').references(() => warehouses.id),
+  acknowledgedAt: timestamp('acknowledged_at'),
+  acknowledgedById: integer('acknowledged_by_id').references(() => users.id),
   actionUrl: text('action_url').default(''),
   isRead: boolean('is_read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// 21. Audit Log (System-wide trace of creates, updates, deletes)
+// 21. Document Comments (Two-way staff & manager document notes)
+export const comments = pgTable('comments', {
+  id: serial('id').primaryKey(),
+  documentType: text('document_type').notNull(), // 'receipt', 'delivery', 'transfer', 'adjustment'
+  documentId: text('document_id').notNull(), // e.g. "REC-2026-0001", "DO-2026-0001"
+  authorId: integer('author_id').notNull().references(() => users.id),
+  message: text('message').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// 22. Audit Log (System-wide trace of creates, updates, deletes)
 export const auditLog = pgTable('audit_log', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id),
@@ -364,5 +378,12 @@ export const stockLedgerRelations = relations(stockLedger, ({ one }) => ({
   location: one(locations, {
     fields: [stockLedger.locationId],
     references: [locations.id],
+  }),
+}));
+
+export const commentsRelations = relations(comments, ({ one }) => ({
+  author: one(users, {
+    fields: [comments.authorId],
+    references: [users.id],
   }),
 }));

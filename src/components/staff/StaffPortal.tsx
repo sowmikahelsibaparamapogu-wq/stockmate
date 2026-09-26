@@ -21,16 +21,33 @@ import {
   Layers,
   Search,
   Building2,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { StatusBadge } from '../common/StatusBadge.tsx';
-import { BarcodeScannerModal } from '../common/BarcodeScannerModal.tsx';
+import {
+  BarcodeScannerModal,
+  playSuccessBeep,
+  playErrorTone,
+} from '../common/BarcodeScannerModal.tsx';
 import { BarcodeScannerTerminal } from '../common/BarcodeScannerTerminal.tsx';
+import { DocumentCommentThread } from '../common/DocumentCommentThread.tsx';
 
 interface StaffPortalProps {
   currentTab: string;
   onNavigateTab: (tab: string) => void;
+}
+
+export interface ActiveScanContext {
+  target: 'receipt_line' | 'delivery_line' | 'transfer' | 'stock_count' | 'global';
+  lineId?: number;
+  expectedProductId?: number;
+  expectedProductName?: string;
+  expectedSku?: string;
+  expectedLocationId?: number;
+  expectedLocationCode?: string;
+  expectedQty?: number;
 }
 
 export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigateTab }) => {
@@ -44,9 +61,23 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Scanner modal state
+  // Two-way Document Notes & Discussion modal for Staff
+  const [staffDocComment, setStaffDocComment] = useState<{
+    type: 'receipt' | 'delivery' | 'transfer' | 'adjustment';
+    id: string;
+    warehouseId?: number;
+  } | null>(null);
+
+  // Scanner modal & contextual validation state
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [activeScanContext, setActiveScanContext] = useState<ActiveScanContext | null>(null);
   const [scannedResult, setScannedResult] = useState<any | null>(null);
+
+  // Mismatch confirmation state
+  const [mismatchData, setMismatchData] = useState<{
+    scannedProduct: any;
+    context: ActiveScanContext;
+  } | null>(null);
 
   // Receipt Execution State
   const [activeReceipt, setActiveReceipt] = useState<any | null>(null);
@@ -410,13 +441,121 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
     }
   };
 
-  // Scan handler
+  // Scan handler with expected item validation
   const handleBarcodeScanned = (lookup: any) => {
     setScannedResult(lookup);
     const item = lookup?.entity || lookup?.data || lookup;
-    if (item?.name) {
-      showToast(`Scanned: ${item.name}`, 'success');
+    const isProduct = lookup?.type === 'product' || Boolean(item?.sku);
+
+    if (!activeScanContext || !activeScanContext.expectedProductId) {
+      // Standalone / global lookup scanner: plain found/not found lookup
+      playSuccessBeep();
+      if (item?.name) {
+        showToast(`Scanned: ${item.name}`, 'success');
+      }
+      return;
     }
+
+    // Contextual scanner with expected item comparison
+    const expectedId = Number(activeScanContext.expectedProductId);
+    const isMatch = isProduct && Number(item?.id) === expectedId;
+
+    if (isMatch) {
+      // MATCH CONFIRMED:
+      // 1. Green toast + Beep
+      playSuccessBeep();
+      showToast(`✅ Match confirmed: ${item.name} (${item.sku})`, 'success');
+
+      // 2. Auto-fill the quantity / line input
+      if (activeScanContext.target === 'receipt_line' && activeScanContext.lineId) {
+        const lineId = activeScanContext.lineId;
+        const currentInputs = receiptLineInputs[lineId] || {};
+        setReceiptLineInputs({
+          ...receiptLineInputs,
+          [lineId]: {
+            ...currentInputs,
+            receivedQty: activeScanContext.expectedQty ?? currentInputs.receivedQty ?? 1,
+          },
+        });
+      } else if (activeScanContext.target === 'delivery_line' && activeScanContext.lineId) {
+        const lineId = activeScanContext.lineId;
+        const currentPick = deliveryPickState[lineId] || {};
+        setDeliveryPickState({
+          ...deliveryPickState,
+          [lineId]: {
+            ...currentPick,
+            pickedQty: activeScanContext.expectedQty ?? currentPick.pickedQty ?? 1,
+            flagged: false,
+          },
+        });
+      } else if (activeScanContext.target === 'transfer') {
+        setTransferForm((prev) => ({
+          ...prev,
+          productId: String(item.id),
+        }));
+      } else if (activeScanContext.target === 'stock_count') {
+        setCountForm((prev) => ({
+          ...prev,
+          productId: String(item.id),
+        }));
+      }
+
+      setActiveScanContext(null);
+    } else {
+      // MISMATCH:
+      // 1. Red toast + distinct low-pitch error tone (not success beep)
+      playErrorTone();
+      const scannedName = item?.name || 'Unknown item';
+      const expectedName = activeScanContext.expectedProductName || `Item #${expectedId}`;
+      showToast(`⚠️ Mismatch: scanned "${scannedName}", expected "${expectedName}"`, 'error');
+
+      // 2. Do NOT auto-fill the line, require explicit staff confirmation
+      setMismatchData({
+        scannedProduct: item,
+        context: activeScanContext,
+      });
+    }
+  };
+
+  const handleAcceptSubstitution = () => {
+    if (!mismatchData) return;
+    const { scannedProduct, context } = mismatchData;
+
+    if (context.target === 'receipt_line' && context.lineId) {
+      const lineId = context.lineId;
+      const currentInputs = receiptLineInputs[lineId] || {};
+      setReceiptLineInputs({
+        ...receiptLineInputs,
+        [lineId]: {
+          ...currentInputs,
+          receivedQty: context.expectedQty ?? currentInputs.receivedQty ?? 1,
+        },
+      });
+    } else if (context.target === 'delivery_line' && context.lineId) {
+      const lineId = context.lineId;
+      const currentPick = deliveryPickState[lineId] || {};
+      setDeliveryPickState({
+        ...deliveryPickState,
+        [lineId]: {
+          ...currentPick,
+          pickedQty: context.expectedQty ?? currentPick.pickedQty ?? 1,
+        },
+      });
+    } else if (context.target === 'transfer') {
+      setTransferForm((prev) => ({
+        ...prev,
+        productId: String(scannedProduct?.id || prev.productId),
+      }));
+    } else if (context.target === 'stock_count') {
+      setCountForm((prev) => ({
+        ...prev,
+        productId: String(scannedProduct?.id || prev.productId),
+      }));
+    }
+
+    showToast(`Substitution accepted for "${scannedProduct?.name || 'item'}". Line updated.`, 'success');
+    setMismatchData(null);
+    setActiveScanContext(null);
   };
 
   // Staff Auto-Order & Presets
@@ -511,9 +650,24 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
     }
   };
 
-  const pendingReceipts = receipts.filter((r) => r.status === 'Ready');
-  const pendingDeliveries = deliveries.filter((d) => d.status === 'Ready');
-  const pendingTransfers = transfers.filter((t) => t.status === 'Ready');
+  const staffWhId = dbUser?.assignedWarehouseId;
+  const assignedWh = warehouses.find((w) => w.id === staffWhId);
+
+  // Scope tasks to the staff member's assigned warehouse (or show all if unassigned)
+  const pendingReceipts = receipts.filter((r) => {
+    if (r.status !== 'Ready') return false;
+    return !staffWhId || r.warehouseId === staffWhId;
+  });
+
+  const pendingDeliveries = deliveries.filter((d) => {
+    if (d.status !== 'Ready') return false;
+    return !staffWhId || d.warehouseId === staffWhId;
+  });
+
+  const pendingTransfers = transfers.filter((t) => {
+    if (t.status !== 'Ready') return false;
+    return !staffWhId || t.warehouseId === staffWhId;
+  });
 
   return (
     <div className="space-y-6">
@@ -640,15 +794,32 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                       From PO: {r.sourceDocument} • {r.lines?.length || 0} line items
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      onNavigateTab('staff_receipts');
-                      handleOpenReceipt(r);
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm shrink-0"
-                  >
-                    Receive Stock
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStaffDocComment({
+                          type: 'receipt',
+                          id: r.receiptNumber,
+                          warehouseId: r.warehouseId,
+                        })
+                      }
+                      className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-100 text-stone-600 dark:text-stone-300 text-xs font-semibold flex items-center gap-1"
+                      title="Document notes"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Notes</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onNavigateTab('staff_receipts');
+                        handleOpenReceipt(r);
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                    >
+                      Receive Stock
+                    </button>
+                  </div>
                 </div>
               ))}
 
@@ -662,23 +833,80 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                       OUTBOUND PICK
                     </span>
                     <h4 className="font-bold text-sm text-stone-900 dark:text-stone-100 mt-1">{d.doNumber}</h4>
-                    <p className="text-xs text-stone-500">Customer: {d.customerName}</p>
+                    <p className="text-xs text-stone-500">Customer: {d.customerName} • {d.lines?.length || 0} line items</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      onNavigateTab('staff_deliveries');
-                      handleOpenDelivery(d);
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm shrink-0"
-                  >
-                    Pick & Pack
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStaffDocComment({
+                          type: 'delivery',
+                          id: d.doNumber,
+                          warehouseId: d.warehouseId,
+                        })
+                      }
+                      className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-100 text-stone-600 dark:text-stone-300 text-xs font-semibold flex items-center gap-1"
+                      title="Document notes"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Notes</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onNavigateTab('staff_deliveries');
+                        handleOpenDelivery(d);
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                    >
+                      Pick & Pack
+                    </button>
+                  </div>
                 </div>
               ))}
 
-              {pendingReceipts.length === 0 && pendingDeliveries.length === 0 && (
+              {pendingTransfers.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/40 flex items-center justify-between gap-4"
+                >
+                  <div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-bold">
+                      INTERNAL TRANSFER
+                    </span>
+                    <h4 className="font-bold text-sm text-stone-900 dark:text-stone-100 mt-1">{t.transferNumber}</h4>
+                    <p className="text-xs text-stone-500">
+                      From: {t.fromLocation?.name || 'Bin'} → To: {t.toLocation?.name || 'Bin'} • {t.lines?.length || 0} items
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStaffDocComment({
+                          type: 'transfer',
+                          id: t.transferNumber,
+                          warehouseId: t.warehouseId,
+                        })
+                      }
+                      className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-100 text-stone-600 dark:text-stone-300 text-xs font-semibold flex items-center gap-1"
+                      title="Document notes"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Notes</span>
+                    </button>
+                    <button
+                      onClick={() => onNavigateTab('staff_transfers')}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                    >
+                      Execute Move
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {pendingReceipts.length === 0 && pendingDeliveries.length === 0 && pendingTransfers.length === 0 && (
                 <div className="text-center py-10 text-stone-400 text-xs">
-                  All current tasks are completed! Use Barcode Scan or Stock Count to inspect shelves.
+                  All current tasks for {assignedWh ? assignedWh.name : 'this warehouse'} are completed! Use Barcode Scan or Stock Count to inspect shelves.
                 </div>
               )}
             </div>
@@ -771,18 +999,36 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                   </div>
                 </div>
 
-                {rec.status !== 'Done' ? (
+                <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => handleOpenReceipt(rec)}
-                    className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm shrink-0"
+                    type="button"
+                    onClick={() =>
+                      setStaffDocComment({
+                        type: 'receipt',
+                        id: rec.receiptNumber,
+                        warehouseId: rec.warehouseId,
+                      })
+                    }
+                    className="p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 transition flex items-center gap-1.5 text-xs font-semibold"
+                    title="View / add notes"
                   >
-                    Process Inbound Stock
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Notes</span>
                   </button>
-                ) : (
-                  <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Received & Shelved
-                  </span>
-                )}
+
+                  {rec.status !== 'Done' ? (
+                    <button
+                      onClick={() => handleOpenReceipt(rec)}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                    >
+                      Process Inbound Stock
+                    </button>
+                  ) : (
+                    <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 px-2">
+                      <CheckCircle2 className="w-4 h-4" /> Received & Shelved
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -831,18 +1077,36 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                   </div>
                 </div>
 
-                {del.status !== 'Done' ? (
+                <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => handleOpenDelivery(del)}
-                    className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm shrink-0"
+                    type="button"
+                    onClick={() =>
+                      setStaffDocComment({
+                        type: 'delivery',
+                        id: del.doNumber,
+                        warehouseId: del.warehouseId,
+                      })
+                    }
+                    className="p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 transition flex items-center gap-1.5 text-xs font-semibold"
+                    title="View / add notes"
                   >
-                    Open Picking Checklist
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Notes</span>
                   </button>
-                ) : (
-                  <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Picked & Dispatched
-                  </span>
-                )}
+
+                  {del.status !== 'Done' ? (
+                    <button
+                      onClick={() => handleOpenDelivery(del)}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                    >
+                      Open Picking Checklist
+                    </button>
+                  ) : (
+                    <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 px-2">
+                      <CheckCircle2 className="w-4 h-4" /> Picked & Dispatched
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -954,7 +1218,26 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Product *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-medium text-stone-700 dark:text-stone-300">Product *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selected = products.find((p) => String(p.id) === String(transferForm.productId));
+                        setActiveScanContext({
+                          target: 'transfer',
+                          expectedProductId: selected ? selected.id : undefined,
+                          expectedProductName: selected ? selected.name : undefined,
+                          expectedSku: selected ? selected.sku : undefined,
+                        });
+                        setScannerOpen(true);
+                      }}
+                      className="text-xs text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 font-bold"
+                    >
+                      <Scan className="w-3 h-3" />
+                      <span>Scan Barcode</span>
+                    </button>
+                  </div>
                   <select
                     required
                     value={transferForm.productId}
@@ -1144,9 +1427,28 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
               <form onSubmit={handleSubmitCount} className="space-y-4 text-xs">
                 {/* Product Selection */}
                 <div>
-                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                    Select Item to Count *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-medium text-stone-700 dark:text-stone-300">
+                      Select Item to Count *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selected = products.find((p) => String(p.id) === String(countForm.productId));
+                        setActiveScanContext({
+                          target: 'stock_count',
+                          expectedProductId: selected ? selected.id : undefined,
+                          expectedProductName: selected ? selected.name : undefined,
+                          expectedSku: selected ? selected.sku : undefined,
+                        });
+                        setScannerOpen(true);
+                      }}
+                      className="text-xs text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 font-bold"
+                    >
+                      <Scan className="w-3 h-3" />
+                      <span>Scan Shelf Item</span>
+                    </button>
+                  </div>
                   <select
                     required
                     value={countForm.productId}
@@ -1381,6 +1683,24 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                           {line.product?.sku} • Expected: {line.expectedQty} {line.product?.unitOfMeasure}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveScanContext({
+                            target: 'receipt_line',
+                            lineId: line.id,
+                            expectedProductId: line.productId,
+                            expectedProductName: line.product?.name,
+                            expectedSku: line.product?.sku,
+                            expectedQty: line.expectedQty,
+                          });
+                          setScannerOpen(true);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <Scan className="w-3.5 h-3.5" />
+                        <span>Scan Item</span>
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -1446,6 +1766,16 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
               })}
             </div>
 
+            {/* Document Notes & Communication Thread */}
+            <div className="pt-2">
+              <DocumentCommentThread
+                documentType="receipt"
+                documentId={activeReceipt.receiptNumber}
+                warehouseId={activeReceipt.warehouseId}
+                title={`Dock Communication: ${activeReceipt.receiptNumber}`}
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-4 border-t border-stone-200 dark:border-stone-800">
               <button
                 type="button"
@@ -1500,9 +1830,31 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                         </p>
                       </div>
 
-                      <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-stone-200 dark:bg-stone-700">
-                        Target: {line.orderedQty}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-stone-200 dark:bg-stone-700">
+                          Target: {line.orderedQty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveScanContext({
+                              target: 'delivery_line',
+                              lineId: line.id,
+                              expectedProductId: line.productId,
+                              expectedProductName: line.product?.name,
+                              expectedSku: line.product?.sku,
+                              expectedQty: line.orderedQty,
+                              expectedLocationId: line.locationId,
+                              expectedLocationCode: line.location?.name,
+                            });
+                            setScannerOpen(true);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                        >
+                          <Scan className="w-3.5 h-3.5" />
+                          <span>Scan Pick</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between gap-3 pt-2">
@@ -1542,6 +1894,16 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
               })}
             </div>
 
+            {/* Document Notes & Communication Thread */}
+            <div className="pt-2">
+              <DocumentCommentThread
+                documentType="delivery"
+                documentId={activeDelivery.doNumber}
+                warehouseId={activeDelivery.warehouseId}
+                title={`Floor Communication: ${activeDelivery.doNumber}`}
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-4 border-t border-stone-200 dark:border-stone-800">
               <button
                 type="button"
@@ -1563,11 +1925,158 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
         </div>
       )}
 
-      {/* Barcode Scanner Modal */}
+      {/* MODAL: Explicit Staff Confirmation on Barcode Item Mismatch */}
+      {mismatchData && (
+        <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/80 text-red-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-base text-stone-900 dark:text-stone-100">
+                  Barcode Item Mismatch Detected
+                </h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  The scanned physical item does not match the item specified in this task line.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setMismatchData(null);
+                  setActiveScanContext(null);
+                }}
+                className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 space-y-1">
+                <span className="font-bold text-[10px] text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                  Expected Item
+                </span>
+                <p className="font-bold text-stone-900 dark:text-stone-100">
+                  {mismatchData.context.expectedProductName || `Item #${mismatchData.context.expectedProductId}`}
+                </p>
+                {mismatchData.context.expectedSku && (
+                  <p className="font-mono text-[11px] text-stone-500">
+                    SKU: {mismatchData.context.expectedSku}
+                  </p>
+                )}
+                {mismatchData.context.expectedQty !== undefined && (
+                  <p className="text-[11px] text-stone-600 dark:text-stone-400">
+                    Expected Qty: {mismatchData.context.expectedQty}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 space-y-1">
+                <span className="font-bold text-[10px] text-red-700 dark:text-red-400 uppercase tracking-wider block">
+                  Scanned Physical Item
+                </span>
+                <p className="font-bold text-stone-900 dark:text-stone-100">
+                  {mismatchData.scannedProduct?.name || 'Unrecognized Item'}
+                </p>
+                <p className="font-mono text-[11px] text-stone-500">
+                  SKU: {mismatchData.scannedProduct?.sku || 'N/A'}
+                </p>
+                {mismatchData.scannedProduct?.barcode && (
+                  <p className="font-mono text-[11px] text-stone-500">
+                    Barcode: {mismatchData.scannedProduct.barcode}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-stone-600 dark:text-stone-400 bg-stone-100 dark:bg-stone-800/60 p-3 rounded-lg">
+              To prevent shipping or inventory errors, automatic line filling was paused. Do you want to explicitly accept this item as an approved substitution or exception?
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMismatchData(null);
+                  setActiveScanContext(null);
+                }}
+                className="px-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+              >
+                Reject & Re-Scan
+              </button>
+              <button
+                type="button"
+                onClick={handleAcceptSubstitution}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-sm transition"
+              >
+                Explicitly Accept Substitution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Standalone Document Discussion Thread for Staff */}
+      {staffDocComment && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-stone-900 dark:text-stone-100 capitalize">
+                    {staffDocComment.type} Discussion: {staffDocComment.id}
+                  </h3>
+                  <p className="text-[11px] text-stone-500">Live notes between floor staff and inventory managers</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStaffDocComment(null)}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <DocumentCommentThread
+              documentType={staffDocComment.type}
+              documentId={staffDocComment.id}
+              warehouseId={staffDocComment.warehouseId}
+            />
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setStaffDocComment(null)}
+                className="px-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg text-xs font-semibold text-stone-700 dark:text-stone-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barcode Scanner Modal with Contextual Validation */}
       <BarcodeScannerModal
         isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
+        onClose={() => {
+          setScannerOpen(false);
+          setActiveScanContext(null);
+        }}
         onDetected={handleBarcodeScanned}
+        expectedProductId={activeScanContext?.expectedProductId}
+        expectedProductName={activeScanContext?.expectedProductName}
+        expectedLocationId={activeScanContext?.expectedLocationId}
+        expectedLocationCode={activeScanContext?.expectedLocationCode}
+        title={
+          activeScanContext?.expectedProductName
+            ? `Scan & Verify: ${activeScanContext.expectedProductName}`
+            : 'Scan Barcode or Location Tag'
+        }
       />
     </div>
   );

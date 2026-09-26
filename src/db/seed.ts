@@ -19,6 +19,7 @@ import {
   adjustmentLines,
   stockLedger,
   notifications,
+  comments,
   auditLog,
   users,
 } from './schema.ts';
@@ -53,6 +54,7 @@ export async function resetAndSeedDemoDatabase() {
   await db.delete(stockLevels);
   await db.delete(batches);
   await db.delete(notifications);
+  await db.delete(comments);
   await db.delete(auditLog);
   await db.delete(products);
   await db.delete(productCategories);
@@ -688,6 +690,8 @@ export async function resetAndSeedDemoDatabase() {
       message: 'PO-2026-0001 delivery has arrived at Receiving Dock 1. Ready for inspection and putaway.',
       type: 'task_assigned',
       targetRole: 'staff',
+      targetWarehouseId: whCentral.id,
+      targetUserId: staffUser.id,
       actionUrl: '/staff/receipts',
       isRead: false,
     },
@@ -696,12 +700,36 @@ export async function resetAndSeedDemoDatabase() {
       message: 'Delivery order DO-2026-0001 for AeroDynamics Engineering SG is ready for pick & pack.',
       type: 'task_assigned',
       targetRole: 'staff',
+      targetWarehouseId: whCentral.id,
+      targetUserId: staffUser.id,
       actionUrl: '/staff/delivery-orders',
       isRead: false,
     },
   ]);
 
-  // 16. Audit Log
+  // 16. Document Comments (Two-Way Communication)
+  await db.insert(comments).values([
+    {
+      documentType: 'receipt',
+      documentId: 'REC-2026-0001',
+      authorId: managerUser.id,
+      message: 'Vendor mentioned pallets were shrink-wrapped with eco-grade tags. Please verify sensor package seals upon unloading.',
+    },
+    {
+      documentType: 'receipt',
+      documentId: 'REC-2026-0001',
+      authorId: staffUser.id,
+      message: 'Noted! Dock 1 clear and forklift inspection ready.',
+    },
+    {
+      documentType: 'delivery',
+      documentId: 'DO-2026-0001',
+      authorId: managerUser.id,
+      message: 'Customer requested double bubble wrap on optical items due to overseas air freight.',
+    },
+  ]);
+
+  // 17. Audit Log
   await db.insert(auditLog).values([
     {
       userId: managerUser.id,

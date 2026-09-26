@@ -18,13 +18,63 @@ interface BarcodeScannerModalProps {
   onClose: () => void;
   onDetected: (result: any) => void;
   title?: string;
+  expectedProductId?: number;
+  expectedProductName?: string;
+  expectedLocationId?: number;
+  expectedLocationCode?: string;
 }
+
+// Sound beep on successful match / barcode detection
+export const playSuccessBeep = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1046.5, ctx.currentTime); // High C
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {
+    // AudioContext policy
+  }
+};
+
+// Distinct error tone on mismatch
+export const playErrorTone = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, ctx.currentTime); // Low buzz
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch (e) {
+    // AudioContext policy
+  }
+};
 
 export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   isOpen,
   onClose,
   onDetected,
   title = 'Scan Barcode or Location Tag',
+  expectedProductId,
+  expectedProductName,
+  expectedLocationId,
+  expectedLocationCode,
 }) => {
   const { token } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -281,6 +331,28 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Expected Item Notification Banner */}
+        {expectedProductName && (
+          <div className="mx-5 mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+              <div>
+                <span className="font-semibold text-stone-500 dark:text-stone-400 block text-[10px] uppercase tracking-wider">
+                  Item to Verify & Validate
+                </span>
+                <span className="font-bold text-stone-900 dark:text-stone-100">
+                  {expectedProductName}
+                </span>
+              </div>
+            </div>
+            {expectedLocationCode && (
+              <span className="font-mono text-[10px] text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 px-2 py-1 rounded-md font-semibold">
+                Bin: {expectedLocationCode}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="p-5 space-y-4">
           {/* Live Camera Viewfinder */}
