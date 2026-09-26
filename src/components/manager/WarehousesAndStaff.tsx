@@ -361,20 +361,46 @@ export const WarehousesAndStaff: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-              {auditLogs.map((log) => (
-                <tr key={log.log.id} className="hover:bg-stone-50/50">
-                  <td className="py-2 px-4 text-stone-400 text-[10px]">
-                    {new Date(log.log.createdAt).toLocaleString()}
+              {auditLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-xs text-stone-400 font-sans">
+                    No system audit logs found yet.
                   </td>
-                  <td className="py-2 px-4 text-stone-800 dark:text-stone-200 font-sans">
-                    {log.user?.name || 'System / Admin'}
-                  </td>
-                  <td className="py-2 px-4 font-bold text-red-600">{log.log.action}</td>
-                  <td className="py-2 px-4 uppercase text-[10px]">{log.log.entityType}</td>
-                  <td className="py-2 px-4">{log.log.entityId}</td>
-                  <td className="py-2 px-4 text-[10px] text-stone-400 truncate max-w-xs">{log.log.details}</td>
                 </tr>
-              ))}
+              ) : (
+                auditLogs.filter(Boolean).map((log, idx) => {
+                  const logItem = log.log || (log.id || log.action ? log : null) || {};
+                  const createdAtRaw = logItem.createdAt || log.createdAt;
+                  const createdAtDate = createdAtRaw ? new Date(createdAtRaw) : null;
+                  const formattedDate =
+                    createdAtDate && !isNaN(createdAtDate.getTime())
+                      ? createdAtDate.toLocaleString()
+                      : 'Recently';
+                  const userName = log.user?.name || log.userName || 'System / Admin';
+                  const action = logItem.action || log.action || 'AUDIT';
+                  const entityType = logItem.entityType || log.entityType || 'SYSTEM';
+                  const entityId = logItem.entityId || log.entityId || 'N/A';
+                  const details =
+                    typeof logItem.details === 'object'
+                      ? JSON.stringify(logItem.details)
+                      : String(logItem.details || log.details || '');
+
+                  return (
+                    <tr key={logItem.id || log.id || idx} className="hover:bg-stone-50/50">
+                      <td className="py-2 px-4 text-stone-400 text-[10px]">
+                        {formattedDate}
+                      </td>
+                      <td className="py-2 px-4 text-stone-800 dark:text-stone-200 font-sans">
+                        {userName}
+                      </td>
+                      <td className="py-2 px-4 font-bold text-red-600">{action}</td>
+                      <td className="py-2 px-4 uppercase text-[10px]">{entityType}</td>
+                      <td className="py-2 px-4">{entityId}</td>
+                      <td className="py-2 px-4 text-[10px] text-stone-400 truncate max-w-xs">{details}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

@@ -699,45 +699,48 @@ export const OperationsManager: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-mono">
-                {ledger.map((entry) => (
-                  <tr key={entry.ledger.id} className="hover:bg-stone-50/60 dark:hover:bg-stone-800/40">
-                    <td className="py-3.5 px-4 text-stone-400 text-[11px]">
-                      {new Date(entry.ledger.createdAt).toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4 font-sans font-semibold text-stone-900 dark:text-stone-100">
-                      {entry.product?.name}
-                      <span className="block text-[10px] text-stone-400 font-mono">{entry.product?.sku}</span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-[10px] font-bold">
-                        {entry.ledger.movementType}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-semibold text-stone-800 dark:text-stone-200">
-                      {entry.ledger.documentReference}
-                    </td>
-                    <td className="py-3.5 px-4 font-sans">
-                      {entry.warehouse?.name} - {entry.location?.name}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold">
-                      <span
-                        className={
-                          entry.ledger.quantityChange > 0
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-red-600 dark:text-red-400'
-                        }
-                      >
-                        {entry.ledger.quantityChange > 0 ? `+${entry.ledger.quantityChange}` : entry.ledger.quantityChange}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-stone-900 dark:text-stone-100">
-                      {entry.ledger.newBalance}
-                    </td>
-                    <td className="py-3.5 px-4 font-sans text-stone-500">
-                      {entry.user?.name || 'System Operator'}
-                    </td>
-                  </tr>
-                ))}
+                {ledger.map((entry: any) => {
+                  const item = entry?.ledger || entry;
+                  return (
+                    <tr key={item?.id || Math.random()} className="hover:bg-stone-50/60 dark:hover:bg-stone-800/40">
+                      <td className="py-3.5 px-4 text-stone-400 text-[11px]">
+                        {item?.createdAt ? new Date(item.createdAt).toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="py-3.5 px-4 font-sans font-semibold text-stone-900 dark:text-stone-100">
+                        {entry?.product?.name || item?.productName || 'Item'}
+                        <span className="block text-[10px] text-stone-400 font-mono">{entry?.product?.sku || item?.sku || ''}</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-[10px] font-bold">
+                          {item?.movementType || 'LOG'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-stone-800 dark:text-stone-200">
+                        {item?.documentReference || 'N/A'}
+                      </td>
+                      <td className="py-3.5 px-4 font-sans">
+                        {entry?.warehouse?.name || 'Warehouse'} - {entry?.location?.name || 'Location'}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold">
+                        <span
+                          className={
+                            item?.quantityChange > 0
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }
+                        >
+                          {item?.quantityChange > 0 ? `+${item.quantityChange}` : item?.quantityChange}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-stone-900 dark:text-stone-100">
+                        {item?.newBalance ?? 0}
+                      </td>
+                      <td className="py-3.5 px-4 font-sans text-stone-500">
+                        {entry?.user?.name || 'System Operator'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

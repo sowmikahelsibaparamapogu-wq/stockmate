@@ -487,7 +487,7 @@ export const SuppliersAndPO: React.FC<SuppliersAndPOProps> = ({
                         <StatusBadge status={po.status} />
                       </td>
                       <td className="py-3.5 px-4 text-stone-400 font-mono text-[11px]">
-                        {new Date(po.createdAt).toLocaleDateString()}
+                        {po?.createdAt ? new Date(po.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
                     </tr>
                   );

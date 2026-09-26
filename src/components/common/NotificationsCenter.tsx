@@ -163,7 +163,7 @@ export const NotificationsCenter: React.FC<NotificationsCenterProps> = ({
                     
                     <div className="flex flex-wrap items-center gap-3 pt-1">
                       <span className="text-[10px] text-stone-400 font-mono">
-                        {new Date(n.createdAt).toLocaleString()}
+                        {n?.createdAt ? new Date(n.createdAt).toLocaleString() : 'Recently'}
                       </span>
 
                       {/* Two-Way Acknowledgment Status Indicator */}
@@ -172,7 +172,7 @@ export const NotificationsCenter: React.FC<NotificationsCenterProps> = ({
                           <CheckCheck className="w-3 h-3" />
                           <span>
                             Seen / Acknowledged by {n.acknowledgedBy?.name || 'Staff'}{' '}
-                            ({new Date(n.acknowledgedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                            ({n.acknowledgedAt ? new Date(n.acknowledgedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'})
                           </span>
                         </span>
                       ) : (

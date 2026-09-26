@@ -161,17 +161,20 @@ function createInMemoryDb(): any {
                 return resolve([{ totalUnits: sum }]);
               }
 
-              // Check if fields is selecting sub-table entities like { line, product, location }
+              // Check if fields is selecting sub-table entities like { ledger, log, line, product, location, user }
               const fieldKeys = Object.keys(fields);
               const isEntityMapping = fieldKeys.some(
                 (k) =>
                   k === 'line' ||
+                  k === 'ledger' ||
+                  k === 'log' ||
                   k === 'product' ||
                   k === 'location' ||
                   k === 'warehouse' ||
                   k === 'supplier' ||
+                  k === 'user' ||
                   (typeof fields[k] === 'object' &&
-                    (fields[k]?._?.name || fields[k]?.[Symbol.for('drizzle:Name')]))
+                    (fields[k]?._?.name || fields[k]?.[Symbol.for('drizzle:Name')] || fields[k]?.table))
               );
 
               if (isEntityMapping) {
@@ -179,24 +182,59 @@ function createInMemoryDb(): any {
                 const locs = getTableRows('locations');
                 const whs = getTableRows('warehouses');
                 const sups = getTableRows('suppliers');
+                const usrs = getTableRows('users');
+                const cats = getTableRows('product_categories');
 
                 const mapped = rows.map((r) => {
                   const out: any = {};
                   for (const k of fieldKeys) {
-                    if (k === 'line') {
-                      out.line = r;
-                    } else if (k === 'product') {
-                      out.product =
+                    const f = fields[k];
+                    const fTableName = f?.[Symbol.for('drizzle:Name')] || f?._?.name;
+
+                    if (k === 'line' || k === 'ledger' || k === 'log' || fTableName === tblName) {
+                      out[k] = r;
+                    } else if (k === 'product' || fTableName === 'products') {
+                      out[k] =
                         prods.find((p) => p.id === r.productId || p.id === r.product_id) || null;
-                    } else if (k === 'location') {
-                      out.location =
+                    } else if (k === 'location' || fTableName === 'locations') {
+                      out[k] =
                         locs.find((l) => l.id === r.locationId || l.id === r.location_id) || null;
-                    } else if (k === 'warehouse') {
-                      out.warehouse =
+                    } else if (k === 'warehouse' || fTableName === 'warehouses') {
+                      out[k] =
                         whs.find((w) => w.id === r.warehouseId || w.id === r.warehouse_id) || null;
-                    } else if (k === 'supplier') {
-                      out.supplier =
+                    } else if (k === 'supplier' || fTableName === 'suppliers') {
+                      out[k] =
                         sups.find((s) => s.id === r.supplierId || s.id === r.supplier_id) || null;
+                    } else if (k === 'user' || fTableName === 'users') {
+                      out[k] =
+                        usrs.find(
+                          (u) =>
+                            u.id === r.performedById ||
+                            u.id === r.userId ||
+                            u.id === r.createdById ||
+                            u.id === r.authorId
+                        ) || null;
+                    } else if (f && typeof f === 'object' && f.name && f.table) {
+                      const colTbl = getTableName(f.table);
+                      const colName = f.name;
+                      if (colTbl === tblName) {
+                        out[k] = r[colName] !== undefined ? r[colName] : r[k];
+                      } else if (colTbl === 'products') {
+                        const matchedProd = prods.find((p) => p.id === r.productId || p.id === r.product_id);
+                        out[k] = matchedProd ? matchedProd[colName] : null;
+                      } else if (colTbl === 'product_categories') {
+                        const matchedProd = prods.find((p) => p.id === r.productId || p.id === r.product_id);
+                        const matchedCat = cats.find((c) => c.id === matchedProd?.categoryId);
+                        out[k] = matchedCat ? matchedCat[colName] : null;
+                      } else if (colTbl === 'warehouses') {
+                        const matchedWh = whs.find((w) => w.id === r.warehouseId || w.id === r.warehouse_id);
+                        out[k] = matchedWh ? matchedWh[colName] : null;
+                      } else if (colTbl === 'locations') {
+                        const matchedLoc = locs.find((l) => l.id === r.locationId || l.id === r.location_id);
+                        out[k] = matchedLoc ? matchedLoc[colName] : null;
+                      } else {
+                        out[k] = r[k] !== undefined ? r[k] : r[colName];
+                      }
                     } else {
                       out[k] = r[k];
                     }

@@ -139,7 +139,7 @@ export const DocumentCommentThread: React.FC<DocumentCommentThreadProps> = ({
 
                   <span className="text-[10px] text-stone-400 flex items-center gap-1 font-mono">
                     <Clock className="w-3 h-3" />
-                    {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {c?.createdAt ? new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}
                   </span>
                 </div>
 

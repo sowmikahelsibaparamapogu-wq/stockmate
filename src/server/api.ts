@@ -1795,7 +1795,35 @@ apiRouter.get('/audit-logs', requireAuth, requireRole(['manager']), async (req, 
       .orderBy(desc(auditLog.createdAt))
       .limit(100);
 
-    res.json(logs);
+    const sanitized = (logs || []).map((entry: any, index: number) => {
+      const logData = entry?.log || (entry?.id || entry?.action ? entry : null);
+      if (!logData) {
+        return {
+          log: {
+            id: index + 1,
+            createdAt: new Date().toISOString(),
+            action: 'SYSTEM_EVENT',
+            entityType: 'general',
+            entityId: 'SYSTEM',
+            details: '',
+          },
+          user: entry?.user || null,
+        };
+      }
+      return {
+        log: {
+          id: logData.id || index + 1,
+          createdAt: logData.createdAt ? new Date(logData.createdAt).toISOString() : new Date().toISOString(),
+          action: logData.action || 'AUDIT',
+          entityType: logData.entityType || 'SYSTEM',
+          entityId: logData.entityId || 'N/A',
+          details: typeof logData.details === 'string' ? logData.details : JSON.stringify(logData.details || {}),
+        },
+        user: entry?.user || null,
+      };
+    });
+
+    res.json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -2005,7 +2033,7 @@ apiRouter.get('/comments', requireAuth, async (req: AuthRequest, res) => {
     const userList = await db.select().from(users);
 
     const populated = commentList
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .sort((a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime())
       .map((c) => {
         const author = userList.find((u) => u.id === c.authorId);
         return {
