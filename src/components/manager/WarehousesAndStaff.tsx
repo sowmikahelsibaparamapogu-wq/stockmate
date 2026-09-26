@@ -81,6 +81,18 @@ export const WarehousesAndStaff: React.FC = () => {
     if (token) fetchData();
   }, [token]);
 
+  // Global Escape key listener to exit any open popup / modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isWhModalOpen) setIsWhModalOpen(false);
+        else if (isLocModalOpen) setIsLocModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isWhModalOpen, isLocModalOpen]);
+
   const handleCreateWarehouse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -370,14 +382,25 @@ export const WarehousesAndStaff: React.FC = () => {
 
       {/* Modal: Add Warehouse */}
       {isWhModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsWhModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">Add Warehouse Facility</h3>
                 <p className="text-xs text-stone-500">Configure regional distribution center or depot</p>
               </div>
-              <button onClick={() => setIsWhModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsWhModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -499,14 +522,25 @@ export const WarehousesAndStaff: React.FC = () => {
 
       {/* Modal: Add Location */}
       {isLocModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsLocModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">Add Bin / Rack Location</h3>
                 <p className="text-xs text-stone-500">Create addressable storage bin, rack, or receiving stage</p>
               </div>
-              <button onClick={() => setIsLocModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsLocModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>

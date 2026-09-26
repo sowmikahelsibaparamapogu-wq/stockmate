@@ -176,6 +176,20 @@ export const OperationsManager: React.FC = () => {
     if (token) fetchData();
   }, [token]);
 
+  // Global Escape key listener to exit any open popup / modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (reviewModalData) setReviewModalData(null);
+        else if (isDoModalOpen) setIsDoModalOpen(false);
+        else if (isReturnModalOpen) setIsReturnModalOpen(false);
+        else if (activeDocComment) setActiveDocComment(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [reviewModalData, isDoModalOpen, isReturnModalOpen, activeDocComment]);
+
   const handleCreateDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -732,13 +746,24 @@ export const OperationsManager: React.FC = () => {
 
       {/* Modal: Review Adjustment */}
       {reviewModalData && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setReviewModalData(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">
                 Review Adjustment {reviewModalData.adjustmentNumber}
               </h3>
-              <button onClick={() => setReviewModalData(null)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setReviewModalData(null)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -852,14 +877,25 @@ export const OperationsManager: React.FC = () => {
 
       {/* Modal: New Delivery Order */}
       {isDoModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsDoModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">Create Outbound Delivery Order</h3>
                 <p className="text-xs text-stone-500">Dispatch stock for customer shipment or cross-dock delivery</p>
               </div>
-              <button onClick={() => setIsDoModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsDoModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -984,14 +1020,25 @@ export const OperationsManager: React.FC = () => {
 
       {/* Modal: Process Return */}
       {isReturnModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsReturnModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">Process Inventory Return</h3>
                 <p className="text-xs text-stone-500">Record customer swap / refund or supplier RMA return</p>
               </div>
-              <button onClick={() => setIsReturnModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsReturnModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1102,8 +1149,14 @@ export const OperationsManager: React.FC = () => {
       )}
       {/* Two-Way Document Comment Thread Modal for Manager */}
       {activeDocComment && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setActiveDocComment(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl animate-in fade-in zoom-in-95 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-red-600" />
@@ -1116,7 +1169,9 @@ export const OperationsManager: React.FC = () => {
               </div>
               <button
                 onClick={() => setActiveDocComment(null)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>

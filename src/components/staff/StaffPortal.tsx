@@ -138,6 +138,31 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
     if (token) fetchData();
   }, [token]);
 
+  // Global Escape key listener to exit any open popup / modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (mismatchData) {
+          setMismatchData(null);
+          setActiveScanContext(null);
+        } else if (scannerOpen) {
+          setScannerOpen(false);
+          setActiveScanContext(null);
+        } else if (activeReceipt) {
+          setActiveReceipt(null);
+        } else if (activeDelivery) {
+          setActiveDelivery(null);
+        } else if (staffDocComment) {
+          setStaffDocComment(null);
+        } else if (scannedResult) {
+          setScannedResult(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mismatchData, scannerOpen, activeReceipt, activeDelivery, staffDocComment, scannedResult]);
+
   // Open Receipt for processing
   const handleOpenReceipt = (rec: any) => {
     setActiveReceipt(rec);
@@ -1644,13 +1669,39 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
 
       {/* TAB 6: Direct Barcode Scan View */}
       {currentTab === 'staff_scan' && (
-        <BarcodeScannerTerminal standalone onDetected={handleBarcodeScanned} />
+        <div className="space-y-4">
+          <div className="p-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-between text-white shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <ScanBarcode className="w-5 h-5 text-red-500" />
+              <div>
+                <h3 className="font-bold text-sm">Direct Barcode Scanner View</h3>
+                <p className="text-xs text-stone-400">Scan product barcodes or warehouse location QR tags</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('staff_tasks')}
+              className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              title="Exit to My Tasks (Esc)"
+            >
+              <X className="w-4 h-4" />
+              <span>Exit to Tasks</span>
+            </button>
+          </div>
+          <BarcodeScannerTerminal standalone onDetected={handleBarcodeScanned} />
+        </div>
       )}
 
       {/* MODAL: Execute Receipt Processing */}
       {activeReceipt && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setActiveReceipt(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">
@@ -1658,7 +1709,12 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                 </h3>
                 <p className="text-xs text-stone-500">Verify delivered quantities and inspect packages</p>
               </div>
-              <button onClick={() => setActiveReceipt(null)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setActiveReceipt(null)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1799,8 +1855,14 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
 
       {/* MODAL: Execute Delivery Order Picking Checklist */}
       {activeDelivery && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setActiveDelivery(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">
@@ -1808,7 +1870,12 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                 </h3>
                 <p className="text-xs text-stone-500">Destination: {activeDelivery.customerName}</p>
               </div>
-              <button onClick={() => setActiveDelivery(null)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setActiveDelivery(null)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1927,8 +1994,17 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
 
       {/* MODAL: Explicit Staff Confirmation on Barcode Item Mismatch */}
       {mismatchData && (
-        <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+        <div
+          className="fixed inset-0 z-60 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => {
+            setMismatchData(null);
+            setActiveScanContext(null);
+          }}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/80 text-red-600 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -1946,7 +2022,9 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
                   setMismatchData(null);
                   setActiveScanContext(null);
                 }}
-                className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2019,8 +2097,14 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
 
       {/* MODAL: Standalone Document Discussion Thread for Staff */}
       {staffDocComment && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setStaffDocComment(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 flex items-center justify-center">
@@ -2035,7 +2119,9 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ currentTab, onNavigate
               </div>
               <button
                 onClick={() => setStaffDocComment(null)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>

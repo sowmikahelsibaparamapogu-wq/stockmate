@@ -114,11 +114,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Brand */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-black tracking-wider shadow-sm">
-              SS
+              SM
             </div>
             <div>
               <span className="font-bold text-lg text-stone-900 dark:text-stone-100 tracking-tight flex items-center gap-1.5">
-                StockSense
+                StockMate
                 <span className="text-xs uppercase font-semibold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900">
                   {isManager ? 'Manager Portal' : 'Warehouse Staff'}
                 </span>
@@ -237,8 +237,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Demo Operations Modal */}
       {showDemoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs cursor-pointer"
+          onClick={() => setShowDemoModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-6 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -246,7 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">
-                    StockSense Demo Data & Operational Workflows
+                    StockMate Demo Data & Operational Workflows
                   </h3>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
                     Rich scenarios loaded in PostgreSQL ready for immediate execution and testing.
@@ -255,7 +261,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <button
                 onClick={() => setShowDemoModal(false)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                aria-label="Close"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>

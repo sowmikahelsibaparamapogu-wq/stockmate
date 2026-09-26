@@ -110,6 +110,18 @@ export const SuppliersAndPO: React.FC<SuppliersAndPOProps> = ({
     if (token) fetchData();
   }, [token]);
 
+  // Global Escape key listener to exit any open popup / modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isPoModalOpen) setIsPoModalOpen(false);
+        else if (isSupplierModalOpen) setIsSupplierModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPoModalOpen, isSupplierModalOpen]);
+
   // Handle auto-prefill from Quick Reorder (from Dashboard / Products)
   useEffect(() => {
     if (initialPreFillSku && productsList.length > 0) {
@@ -515,8 +527,14 @@ export const SuppliersAndPO: React.FC<SuppliersAndPOProps> = ({
 
       {/* Modal: Create Purchase Order with Auto-Reorder Suggestion */}
       {isPoModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsPoModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-red-600" />
@@ -527,7 +545,12 @@ export const SuppliersAndPO: React.FC<SuppliersAndPOProps> = ({
                   <p className="text-xs text-stone-500">Auto-suggested quantities computed live from ledger & threshold</p>
                 </div>
               </div>
-              <button onClick={() => setIsPoModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsPoModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -725,14 +748,25 @@ export const SuppliersAndPO: React.FC<SuppliersAndPOProps> = ({
 
       {/* Modal: Add Supplier */}
       {isSupplierModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsSupplierModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">Add Supplier</h3>
                 <p className="text-xs text-stone-500">Register verified vendor, contact & delivery lead time</p>
               </div>
-              <button onClick={() => setIsSupplierModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsSupplierModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>

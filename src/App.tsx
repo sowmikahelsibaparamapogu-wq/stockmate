@@ -73,9 +73,9 @@ export default function App() {
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-600 animate-pulse flex items-center justify-center text-white font-black">
-            SS
+            SM
           </div>
-          <span className="text-xs font-semibold text-stone-500">Connecting to StockSense database...</span>
+          <span className="text-xs font-semibold text-stone-500">Connecting to StockMate database...</span>
         </div>
       </div>
     );

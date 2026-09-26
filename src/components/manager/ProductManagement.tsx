@@ -202,6 +202,18 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
     if (token) fetchData();
   }, [token]);
 
+  // Global Escape key listener to exit any open popup / modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isModalOpen) setIsModalOpen(false);
+        else if (selectedProduct) setSelectedProduct(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen, selectedProduct]);
+
   const handleOpenCreate = () => {
     setEditingProduct(null);
     const defaultWh = warehouses[0];
@@ -542,8 +554,14 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
 
       {/* Modal Create / Edit */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div>
                 <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">
@@ -553,7 +571,12 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
                   {editingProduct ? 'Update specifications & threshold' : 'Register SKU, barcode & unit metrics'}
                 </p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -823,8 +846,14 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
       )}
       {/* Selected Item Telemetry & Inspection Modal */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto space-y-6">
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedProduct(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto space-y-6 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-start justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-3">
@@ -848,7 +877,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onQuickReo
               </div>
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+                aria-label="Close"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>

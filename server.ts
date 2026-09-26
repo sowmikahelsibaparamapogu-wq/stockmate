@@ -87,7 +87,7 @@ async function startServer() {
 
   // Bind server immediately to ensure port is open and responsive to health checks
   app.listen(port, host, () => {
-    console.log(`StockSense server running on http://${host}:${port}`);
+    console.log(`StockMate server running on http://${host}:${port}`);
   });
 }
 

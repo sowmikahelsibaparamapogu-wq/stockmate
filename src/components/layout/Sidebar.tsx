@@ -123,11 +123,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center text-white font-black text-base shadow-sm">
-              SS
+              SM
             </div>
             <div>
               <span className="font-bold text-lg text-stone-900 dark:text-stone-100 tracking-tight block leading-tight">
-                StockSense
+                StockMate
               </span>
               <span className="text-[10px] uppercase font-bold text-red-600 tracking-wider">
                 Enterprise WMS
@@ -286,9 +286,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center text-white font-black text-xs">
-              SS
+              SM
             </div>
-            <span className="font-bold text-base text-stone-900 dark:text-stone-100">StockSense</span>
+            <span className="font-bold text-base text-stone-900 dark:text-stone-100">StockMate</span>
           </div>
         </div>
 
@@ -320,8 +320,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Demo Operations Modal */}
       {showDemoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs cursor-pointer"
+          onClick={() => setShowDemoModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-6 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -329,7 +335,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100">
-                    StockSense Demo Data & Operational Workflows
+                    StockMate Demo Data & Operational Workflows
                   </h3>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
                     Rich scenarios loaded in PostgreSQL ready for immediate execution and testing.
@@ -338,7 +344,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <button
                 onClick={() => setShowDemoModal(false)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                aria-label="Close"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>
